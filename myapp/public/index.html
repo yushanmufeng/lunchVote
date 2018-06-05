@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>订餐</title>
+	<script src="vue.min.js"></script>
+	<script src="vue-resource.js"></script>
+
+	<link href="bootstrap.css" rel="stylesheet">
+	<script type="text/javascript">
+		if (!!window.ActiveXObject || "ActiveXObject" in window) {//IE浏览器
+	        alert("请使用非ie打开");
+	    }
+	    else{
+	    	var userAgent = navigator.userAgent; //取得浏览器的userAgent字符串
+			var isQQBrowser = userAgent.indexOf("QQBrowser") > -1;
+			if (isQQBrowser) {
+				alert("请使用非QQ浏览器打开");
+			}
+	    }
+	</script>
+</head>
+<body>
+	<div id="vue_det" class="container">
+		<row style="margin-top:20px;">
+			<div class="col-md-2" style=""><img src="logo.jpg" class="img-responsive center-block"></div>
+			<div class="col-md-10">
+				<form role="form" class="form-horizontal" style="margin-top:10px;">
+					<div class="form-group" style="margin-bottom:8px;">
+				        <label for="username" class="col-sm-2 control-label">名字</label>
+				        <div class="col-sm-10">
+				            <input type="text" v-model="userName" class="form-control" id="username" placeholder="请输入名字">
+				        </div>
+				    </div>
+				    <div class="form-group" style="margin-bottom:8px;">
+				        <label for="foodname" class="col-sm-2 control-label">菜品</label>
+				        <div class="col-sm-10">
+				            <select v-model="myFood" class="form-control" id="foodname">
+								<template v-for="foodTemp in foodTempList" >
+									<option :value="foodTemp.name">{{foodTemp.name}}({{foodTemp.price}}元)</option>
+								</template>
+							</select>
+				        </div>
+				    </div>
+				    <div class="form-group" style="margin-bottom:8px;">
+				        <label for="remark" class="col-sm-2 control-label">备注</label>
+				        <div class="col-sm-10">
+				            <input type="text" v-model="remark" class="form-control" id="remark" placeholder="备注">
+				        </div>
+				    </div>
+				    <div class="form-group" style="text-align:center;">
+				    	<button class="btn btn-primary" v-on:click='saveFood' style="height:28px;line-height:16px;">确认</button>
+				    </div>
+				</form>
+			</div>
+		</row>
+		<div class="col-md-12" style="margin-top:20px; padding:0; ">
+			<table class="table table-striped table-condensed" style="margin:0;">
+			    <thead>
+				    <tr style="height:26px;">
+				    	<th style="width:10%">序号</th>
+				    	<th style="width:20%">名字</th>
+				        <th style="width:30%">菜品名</th>
+				        <th style="width:20%">价格</th>
+				        <th style="width:20%">操作</th>
+				    </tr>
+			    </thead>
+			    <tbody style="border: 2px solid #efefef;">
+			        <tr v-for="(selectedItem, index) in selectedList">
+			        	<td>{{index+1}}</td>
+			        	<td v-if="selectedItem.userName==userName"><span class="success">{{selectedItem.userName}}</span></td>
+			        	<td v-if="selectedItem.userName!=userName">{{selectedItem.userName}}</td>
+				        <td>{{selectedItem.foodName}}<label v-if="selectedItem.remark">({{selectedItem.remark}})</label></td>
+				        <td>{{getFoodPriceByFoodName(selectedItem.foodName)}}元</td>
+				        <td>
+							<button class="btn btn-danger" v-on:click='deleteFood(selectedItem.userName, selectedItem.foodName)' style="height:28px;line-height:16px;">删除</button>
+				        </td>
+				    </tr>
+			    </tbody>
+			</table>
+		</div>	
+		<div class="col-md-12" style="margin-top:10px;padding:0;">
+			总计：
+			<template v-for="(selectedItem, index) in selectedList" >
+				{{selectedItem.foodName}}<label v-if="selectedItem.remark">({{selectedItem.remark}})</label>、
+			</template>
+		</div>
+	</div>
+	<script type="text/javascript">
+		var vm = new Vue({
+			el: '#vue_det',
+			data: {
+				userName: '',
+				myFood: '',
+				remark: '',
+				foodTempList: [],
+				selectedList: [],
+				isShow: true,
+				finalText: ''
+			},
+			methods: {
+				loadFoodTempList: function(){
+		            this.$http.get('foodTempList').then(function(res){
+		                this.foodTempList = res.body; 
+		            },function(){
+		                console.log('请求失败处理');
+		            });
+		        },
+		        loadSelectedList: function(){
+		            this.$http.get('selectedFoodList').then(function(res){
+		                this.selectedList = res.body; 
+		            },function(){
+		                console.log('请求失败处理');
+		            });
+		        },
+				saveFood: function(){
+					if(!this.userName){
+						alert("用户名不能为空");
+						return;
+					}
+					if(!this.myFood){
+						alert("菜品名不能为空");
+						return;
+					}
+					this.$http.get('submitSelectFood?userName='+this.userName+'&food='+this.myFood+'&remark='+this.remark).then(function(res){
+		                this.selectedList = res.body; 
+		            },function(){
+		                console.log('请求失败处理');
+		            });
+					// 保存名字到本地
+					localStorage.setItem("userName", this.userName);
+		        },
+		        deleteFood: function(delUserName, delFood){
+		        	var msg = '确认删除"'+delUserName+'"的菜品【'+delFood+'】吗？'; 
+					if (confirm(msg)==true){ 
+					    this.$http.get('deleteSelectFood?userName='+delUserName).then(function(res){
+			                this.selectedList = res.body; 
+			            },function(){
+			                console.log('请求失败处理');
+			            });
+					}
+		        },
+		        getFoodPriceByFoodName: function(foodName){
+		        	for(var i = 0; i < this.foodTempList.length; i++){
+						if(this.foodTempList[i].name == foodName){
+							return this.foodTempList[i].price;
+						}
+					}
+		        },
+		        updateMySelectedFood: function(){
+		        	for(var i = 0; i < this.selectedList.length; i++){
+						if(this.selectedList[i].userName == this.userName){
+							this.myFood = this.selectedList[i].foodName;
+							break;
+						}
+					}
+		        },
+		        toggle: function(){
+		        	this.isShow=!this.isShow;
+		        }
+			}
+		})
+		vm.loadFoodTempList();
+		vm.loadSelectedList();
+		// 读取本地用户名
+		var localUserName = localStorage.getItem("userName", this.userName);
+		if(localUserName){
+			vm.userName = localUserName;
+		}
+		// 显示对应菜品名
+		var timeoutFunc = function(){
+			vm.updateMySelectedFood();
+		}
+		setTimeout("timeoutFunc()", 200);
+		// 定时更新选中菜品		
+		var updateFoodFunc = function(){
+			vm.loadSelectedList();
+		}
+		setInterval('updateFoodFunc()',2000);
+
+	</script>
+</body>
+</html>
